@@ -5,9 +5,9 @@
 *
 *  TITLE:       NTOS.H
 *
-*  VERSION:     1.138
+*  VERSION:     1.152
 *
-*  DATE:        29 May 2020
+*  DATE:        12 July 2020
 *
 *  Common header file for the ntos API functions and definitions.
 *
@@ -26,6 +26,10 @@
 *
 ************************************************************************************/
 
+#if defined (_MSC_VER) && (_MSC_VER >= 1020)
+#pragma once
+#endif
+
 #ifndef NTOS_RTL
 #define NTOS_RTL
 
@@ -33,6 +37,11 @@
 //
 // NTOS_RTL HEADER BEGIN
 //
+
+//
+// Enable LIST_ENTRY macroses.
+//
+#define NTOS_ENABLE_LIST_ENTRY_MACRO
 
 #if defined(__cplusplus)
 extern "C" {
@@ -376,6 +385,7 @@ char _RTL_CONSTANT_STRING_type_check(const void *s);
 //
 // Memory Partition Object Access Rights
 //
+#ifndef MEMORY_PARTITION_QUERY_ACCESS
 #define MEMORY_PARTITION_QUERY_ACCESS  0x0001
 #define MEMORY_PARTITION_MODIFY_ACCESS 0x0002
 
@@ -383,6 +393,7 @@ char _RTL_CONSTANT_STRING_type_check(const void *s);
                                      SYNCHRONIZE |                      \
                                      MEMORY_PARTITION_QUERY_ACCESS |    \
                                      MEMORY_PARTITION_MODIFY_ACCESS)
+#endif
 
 //
 // NtCreateProcessEx specific flags.
@@ -2437,10 +2448,11 @@ typedef struct _SECTION_INTERNAL_IMAGE_INFORMATION {
         struct
         {
             ULONG ImageExportSuppressionEnabled : 1;
-            ULONG Reserved : 31;
+            ULONG ImageCetShadowStacksReady : 1; // 20H1
+            ULONG Reserved : 30;
         };
     };
-} SECTION_INTERNAL_IMAGE_INFORMATION, *PSECTION_INTERNAL_IMAGE_INFORMATION;
+} SECTION_INTERNAL_IMAGE_INFORMATION, * PSECTION_INTERNAL_IMAGE_INFORMATION;
 
 typedef enum _SECTION_INHERIT {
     ViewShare = 1,
@@ -3362,8 +3374,8 @@ typedef struct _DEVICE_MAP_V1 {
     UCHAR DriveType[32];
 } DEVICE_MAP_V1, * PDEVICE_MAP_V1;
 
-typedef struct DEVICE_MAP_V1 DEVICE_MAP_COMPATIBLE;
-typedef struct PDEVICE_MAP_V1 PDEVICE_MAP_COMPATIBLE;
+typedef struct _DEVICE_MAP_V1 DEVICE_MAP_COMPATIBLE;
+typedef struct _DEVICE_MAP_V1* PDEVICE_MAP_COMPATIBLE;
 
 //Since REDSTONE1 (14393)
 typedef struct _DEVICE_MAP_V2 {
@@ -4007,6 +4019,7 @@ typedef struct _FAST_IO_DISPATCH {
 #define IRP_MJ_PNP_POWER                IRP_MJ_PNP      
 #define IRP_MJ_MAXIMUM_FUNCTION         0x1b
 
+// Public structure
 typedef struct _DRIVER_EXTENSION {
 
     //
@@ -4038,6 +4051,41 @@ typedef struct _DRIVER_EXTENSION {
     UNICODE_STRING ServiceKeyName;
 
 } DRIVER_EXTENSION, *PDRIVER_EXTENSION;
+
+// Private, since 7.1
+typedef struct _DRIVER_EXTENSION_V2 {
+    struct _DRIVER_OBJECT* DriverObject;
+    PVOID AddDevice;
+    ULONG Count;
+    UNICODE_STRING ServiceKeyName;
+    struct _IO_CLIENT_EXTENSION* ClientDriverExtension;
+    struct _FS_FILTER_CALLBACKS* FsFilterCallbacks;
+} DRIVER_EXTENSION_V2, * PDRIVER_EXTENSION_V2;
+
+// Private, since 8.0
+typedef struct _DRIVER_EXTENSION_V3 {
+    struct _DRIVER_OBJECT* DriverObject;
+    PVOID AddDevice;
+    ULONG Count;
+    UNICODE_STRING ServiceKeyName;
+    struct _IO_CLIENT_EXTENSION* ClientDriverExtension;
+    struct _FS_FILTER_CALLBACKS* FsFilterCallbacks;
+    PVOID KseCallbacks; //KernelShimEngine
+    PVOID DvCallbacks; //DriverVerifier
+} DRIVER_EXTENSION_V3, * PDRIVER_EXTENSION_V3;
+
+// Private, since 8.1
+typedef struct _DRIVER_EXTENSION_V4 {
+    struct _DRIVER_OBJECT* DriverObject;
+    PVOID AddDevice;
+    ULONG Count;
+    UNICODE_STRING ServiceKeyName;
+    struct _IO_CLIENT_EXTENSION* ClientDriverExtension;
+    struct _FS_FILTER_CALLBACKS* FsFilterCallbacks;
+    PVOID KseCallbacks; //KernelShimEngine
+    PVOID DvCallbacks; //DriverVerifier
+    PVOID VerifierContext;
+} DRIVER_EXTENSION_V4, * PDRIVER_EXTENSION_V4;
 
 #define DRVO_UNLOAD_INVOKED             0x00000001
 #define DRVO_LEGACY_DRIVER              0x00000002
@@ -4416,7 +4464,9 @@ typedef enum _MEMORY_INFORMATION_CLASS {
     MemoryRegionInformationEx,
     MemoryPrivilegedBasicInformation,
     MemoryEnclaveImageInformation,
-    MemoryBasicInformationCapped
+    MemoryBasicInformationCapped,
+    MemoryPhysicalContiguityInformation,
+    MaxMemoryInfoClass
 } MEMORY_INFORMATION_CLASS, *PMEMORY_INFORMATION_CLASS;
 
 typedef enum _VIRTUAL_MEMORY_INFORMATION_CLASS {
@@ -4446,13 +4496,79 @@ typedef struct _MEMORY_REGION_INFORMATION {
         };
     };
     SIZE_T RegionSize;
-    //SIZE_T CommitSize;
+    SIZE_T CommitSize;
 } MEMORY_REGION_INFORMATION, *PMEMORY_REGION_INFORMATION;
+
+typedef struct _MEMORY_REGION_INFORMATION_V2 {
+    PVOID AllocationBase;
+    ULONG AllocationProtect;
+    union
+    {
+        ULONG RegionType;
+        struct
+        {
+            ULONG Private : 1;
+            ULONG MappedDataFile : 1;
+            ULONG MappedImage : 1;
+            ULONG MappedPageFile : 1;
+            ULONG MappedPhysical : 1;
+            ULONG DirectMapped : 1;
+            ULONG SoftwareEnclave : 1; // RS3
+            ULONG PageSize64K : 1;
+            ULONG Reserved : 24;
+        };
+    };
+    SIZE_T RegionSize;
+    SIZE_T CommitSize;
+    ULONG_PTR PartitionId; // 19H1
+} MEMORY_REGION_INFORMATION_V2, * PMEMORY_REGION_INFORMATION_V2;
+
+typedef struct _MEMORY_REGION_INFORMATION_V3 {
+    PVOID AllocationBase;
+    ULONG AllocationProtect;
+    union
+    {
+        ULONG RegionType;
+        struct
+        {
+            ULONG Private : 1;
+            ULONG MappedDataFile : 1;
+            ULONG MappedImage : 1;
+            ULONG MappedPageFile : 1;
+            ULONG MappedPhysical : 1;
+            ULONG DirectMapped : 1;
+            ULONG SoftwareEnclave : 1; // RS3
+            ULONG PageSize64K : 1;
+            ULONG PlaceholderReservation : 1; // RS4
+            ULONG Reserved : 23;
+        };
+    };
+    SIZE_T RegionSize;
+    SIZE_T CommitSize;
+    ULONG_PTR PartitionId; // 19H1
+    ULONG_PTR NodePreference; // 20H1
+} MEMORY_REGION_INFORMATION_V3, * PMEMORY_REGION_INFORMATION_V3;
 
 typedef struct _MEMORY_RANGE_ENTRY {
     PVOID VirtualAddress;
     SIZE_T NumberOfBytes;
 } MEMORY_RANGE_ENTRY, *PMEMORY_RANGE_ENTRY;
+
+typedef struct _MEMORY_IMAGE_INFORMATION {
+    PVOID ImageBase;
+    SIZE_T SizeOfImage;
+    union
+    {
+        ULONG ImageFlags;
+        struct
+        {
+            ULONG ImagePartialMap : 1;
+            ULONG ImageNotExecutable : 1;
+            ULONG ImageSigningLevel : 4; // RS3
+            ULONG Reserved : 26;
+        };
+    };
+} MEMORY_IMAGE_INFORMATION, * PMEMORY_IMAGE_INFORMATION;
 
 /*
 ** Virtual Memory END
@@ -5722,6 +5838,108 @@ typedef struct _ESERVERSILO_GLOBALS {
 */
 
 /*
+** KSE START
+*/
+
+typedef enum _KSE_DISABLE_FLAGS {
+    DisableNone = 0,
+    DisableDriverShims = 1,
+    DisableDeviceShims = 2,
+    MaxDisableFlags
+} KSE_DISABLE_FLAGS;
+
+typedef enum _KSE_STATE {
+    KseNotReady = 0,
+    KseInProgress = 1,
+    KseReady = 2
+} KSE_STATE;
+
+#define KseFlagsNone                0x0000
+#define KseFlagsGroupPolicyOk       0x0002
+#define KseFlagsVerifierEnabled     0x0040
+#define KseFlagsNoDb                0x0080   
+#define KseFlagsInitSafeMode        0x0100
+#define KseFlagsDrvShimActive       0x0800
+#define KseFlagsDevShimsActive      0x1000
+
+#if _MSC_VER >= 1200
+#pragma warning(push)
+#pragma warning(disable:4324) // structure was padded due to __declspec(align())
+#endif
+typedef struct DECLSPEC_ALIGN(MEMORY_ALLOCATION_ALIGNMENT)_KSE_ENGINE {
+    KSE_DISABLE_FLAGS DisableFlags;
+    KSE_STATE State;
+    ULONG Flags; //KseFlags*
+    LIST_ENTRY ProvidersListHead;
+    LIST_ENTRY ShimmedDriversListHead;
+    PVOID KseGetIoCallbacksRoutine;
+    PVOID KseSetCompletionHookRoutine;
+    PVOID DeviceInfoCache;
+    PVOID HardwareIdCache;
+    PVOID ShimmedDriverHint;
+} KSE_ENGINE, * PKSE_ENGINE;
+
+#if _MSC_VER >= 1200
+#pragma warning(pop)
+#endif
+
+typedef struct _KSE_SHIM {
+    ULONG Size;
+    GUID* Guid;
+    PWCHAR Name;
+    PVOID KseCallbackRoutines;
+    PVOID RemoveNotificationRoutine;
+    PVOID ApplyNotificationRoutine;
+    PVOID HookCollectionsArray;
+} KSE_SHIM, * PKSE_SHIM;
+
+typedef enum _KSE_HOOK_COLLECTION_TYPE {
+    HookNtOsImport = 0,
+    HookHalImport = 1,
+    HookNamedModuleImports = 2,
+    HookCallbacks = 3,
+    HookLastCollection = 4
+} KSE_HOOK_COLLECTION_TYPE;
+
+typedef struct _KSE_HOOK_COLLECTION {
+    KSE_HOOK_COLLECTION_TYPE Type;
+    PWCHAR TargetDriverName;
+    PVOID HookArray;
+} KSE_HOOK_COLLECTION, * PKSE_HOOK_COLLECTION;
+
+typedef enum _KSE_HOOK_TYPE {
+    HookFunction = 0,
+    HookIrpCallback = 1,
+    HookLast = 2
+} KSE_HOOK_TYPE, * PKSE_HOOK_TYPE;
+
+typedef struct _KSE_HOOK {
+    KSE_HOOK_TYPE Type;
+    union {
+        PCHAR FunctionName;
+        ULONG CallbackId;
+    } DUMMYUNION;
+    PVOID HookFunction;
+    PVOID OriginalFunction;
+} KSE_HOOK, * PKSE_HOOK;
+
+typedef struct _KSE_PROVIDER {
+    LIST_ENTRY ProviderList;
+    PKSE_SHIM Shim;
+} KSE_PROVIDER, * PKSE_PROVIDER;
+
+typedef struct _KSE_SHIMMED_DRIVER {
+    LIST_ENTRY ListEntry;
+    PVOID DriverBaseAddress;
+    ULONG RefCount;
+    //incomplete
+} KSE_SHIMMED_DRIVER, * PKSE_SHIMMED_DRIVER;
+
+/*
+** KSE END
+*/
+
+/*
 ** SOFTWARE LICENSING START
 */
 #pragma pack(push, 1)
@@ -5767,6 +5985,182 @@ typedef struct _SL_APPX_CACHE {
 ** SOFTWARE LICENSING END
 */
 
+/*
+** List Entry macro START (wdm.h)
+*/
+
+#if defined (NTOS_ENABLE_LIST_ENTRY_MACRO)
+
+#define InitializeListHead32(ListHead) (\
+    (ListHead)->Flink = (ListHead)->Blink = PtrToUlong((ListHead)))
+
+FORCEINLINE
+VOID
+InitializeListHead(
+    _Out_ PLIST_ENTRY ListHead
+)
+{
+    ListHead->Flink = ListHead->Blink = ListHead;
+    return;
+}
+
+_Must_inspect_result_
+BOOLEAN
+CFORCEINLINE
+IsListEmpty(
+    _In_ const LIST_ENTRY* ListHead
+)
+{
+    return (BOOLEAN)(ListHead->Flink == ListHead);
+}
+
+FORCEINLINE
+BOOLEAN
+RemoveEntryList(
+    _In_ PLIST_ENTRY Entry
+)
+{
+    PLIST_ENTRY Blink;
+    PLIST_ENTRY Flink;
+
+    Flink = Entry->Flink;
+    Blink = Entry->Blink;
+    Blink->Flink = Flink;
+    Flink->Blink = Blink;
+    return (BOOLEAN)(Flink == Blink);
+}
+
+FORCEINLINE
+PLIST_ENTRY
+RemoveHeadList(
+    _Inout_ PLIST_ENTRY ListHead
+)
+{
+    PLIST_ENTRY Flink;
+    PLIST_ENTRY Entry;
+
+    Entry = ListHead->Flink;
+    Flink = Entry->Flink;
+    ListHead->Flink = Flink;
+    Flink->Blink = ListHead;
+    return Entry;
+}
+
+FORCEINLINE
+PLIST_ENTRY
+RemoveTailList(
+    _Inout_ PLIST_ENTRY ListHead
+)
+{
+    PLIST_ENTRY Blink;
+    PLIST_ENTRY Entry;
+
+    Entry = ListHead->Blink;
+    Blink = Entry->Blink;
+    ListHead->Blink = Blink;
+    Blink->Flink = ListHead;
+    return Entry;
+}
+
+FORCEINLINE
+VOID
+InsertTailList(
+    _Inout_ PLIST_ENTRY ListHead,
+    _Inout_ __drv_aliasesMem PLIST_ENTRY Entry
+)
+{
+    PLIST_ENTRY Blink;
+
+    Blink = ListHead->Blink;
+    Entry->Flink = ListHead;
+    Entry->Blink = Blink;
+    Blink->Flink = Entry;
+    ListHead->Blink = Entry;
+    return;
+}
+
+FORCEINLINE
+VOID
+InsertHeadList(
+    _Inout_ PLIST_ENTRY ListHead,
+    _Inout_ __drv_aliasesMem PLIST_ENTRY Entry
+)
+{
+    PLIST_ENTRY Flink;
+
+    Flink = ListHead->Flink;
+    Entry->Flink = Flink;
+    Entry->Blink = ListHead;
+    Flink->Blink = Entry;
+    ListHead->Flink = Entry;
+    return;
+}
+
+FORCEINLINE
+VOID
+AppendTailList(
+    _Inout_ PLIST_ENTRY ListHead,
+    _Inout_ PLIST_ENTRY ListToAppend
+)
+{
+    PLIST_ENTRY ListEnd = ListHead->Blink;
+
+    ListHead->Blink->Flink = ListToAppend;
+    ListHead->Blink = ListToAppend->Blink;
+    ListToAppend->Blink->Flink = ListHead;
+    ListToAppend->Blink = ListEnd;
+    return;
+}
+
+FORCEINLINE
+PSINGLE_LIST_ENTRY
+PopEntryList(
+    _Inout_ PSINGLE_LIST_ENTRY ListHead
+)
+{
+    PSINGLE_LIST_ENTRY FirstEntry;
+
+    FirstEntry = ListHead->Next;
+    if (FirstEntry != NULL) {
+        ListHead->Next = FirstEntry->Next;
+    }
+
+    return FirstEntry;
+}
+
+FORCEINLINE
+VOID
+PushEntryList(
+    _Inout_ PSINGLE_LIST_ENTRY ListHead,
+    _Inout_ __drv_aliasesMem PSINGLE_LIST_ENTRY Entry
+)
+{
+    Entry->Next = ListHead->Next;
+    ListHead->Next = Entry;
+    return;
+}
+
+#define ASSERT_LIST_ENTRY_VALID(ListEntry) {                    \
+    if (ListEntry == NULL)                                      \
+        return;                                                 \
+    if (ListEntry->Flink == NULL || ListEntry->Blink == NULL)   \
+        return;                                                 \
+}
+
+#define ASSERT_LIST_ENTRY_VALID_ERROR_X(ListEntry, X) {         \
+    if (ListEntry == NULL)                                      \
+        return X;                                               \
+    if (ListEntry->Flink == NULL || ListEntry->Blink == NULL)   \
+        return X;                                               \
+}
+
+#define ASSERT_LIST_ENTRY_VALID_BOOLEAN(ListEntry) ASSERT_LIST_ENTRY_VALID_ERROR_X(ListEntry, FALSE)
+
+#endif /* NTOS_ENABLE_LIST_ENTRY_MACRO */
+
+/*
+** List Entry macro END
+*/
 
 /*
 **  LDR START
@@ -6841,11 +7235,27 @@ RtlpEnsureBufferSize(
     } while (0)
 
 
+NTSYSAPI
+VOID
+NTAPI
+RtlRunEncodeUnicodeString(
+    _Inout_ PUCHAR Seed,
+    _In_ PUNICODE_STRING String);
+
+NTSYSAPI
+VOID
+NTAPI
+RtlRunDecodeUnicodeString(
+    _In_ UCHAR Seed,
+    _In_ PUNICODE_STRING String);
+
 /************************************************************************************
 *
 * RTL Integer conversion API.
 *
 ************************************************************************************/
+
+struct in6_addr;
 
 NTSYSAPI
 PWSTR
@@ -6862,6 +7272,21 @@ RtlIpv4StringToAddressW(
     _In_ BOOLEAN Strict,
     _Out_ LPCWSTR *Terminator,
     _Out_ struct in_addr *Address);
+
+NTSYSAPI
+PWSTR
+NTAPI
+RtlIpv6AddressToStringW(
+    _In_ struct in6_addr*Address,
+    _Out_writes_(46) PWSTR AddressString);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlIpv6StringToAddressW(
+    _In_ PCWSTR AddressString,
+    _Out_ PCWSTR * Terminator,
+    _Out_ struct in6_addr*Address);
 
 //taken from ph2
 
@@ -7753,6 +8178,37 @@ RtlCreateServiceSid(
     _Out_writes_bytes_opt_(*ServiceSidLength) PSID ServiceSid,
     _Inout_ PULONG ServiceSidLength);
 
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlSidEqualLevel(
+    _In_ PSID Sid1,
+    _In_ PSID Sid2,
+    _Out_ PBOOLEAN EqualLevel);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlSidIsHigherLevel(
+    _In_ PSID Sid1,
+    _In_ PSID Sid2,
+    _Out_ PBOOLEAN HigherLevel);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlReplaceSidInSd(
+    _Inout_ PSECURITY_DESCRIPTOR SecurityDescriptor,
+    _In_ PSID OldSid,
+    _In_ PSID NewSid,
+    _Out_ ULONG* NumChanges);
+
+NTSYSAPI
+BOOLEAN
+NTAPI
+RtlIsElevatedRid(
+    _In_ PSID_AND_ATTRIBUTES SidAttr);
+
 FORCEINLINE 
 LUID 
 NTAPI 
@@ -7838,6 +8294,14 @@ NTSTATUS
 NTAPI
 RtlImpersonateSelf(
     _In_ SECURITY_IMPERSONATION_LEVEL ImpersonationLevel);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlImpersonateSelfEx(
+    _In_ SECURITY_IMPERSONATION_LEVEL ImpersonationLevel,
+    _In_opt_ ACCESS_MASK AdditionalAccess,
+    _Out_opt_ PHANDLE ThreadToken);
 
 /************************************************************************************
 *
@@ -9465,7 +9929,23 @@ typedef struct _OBJECT_SYMBOLIC_LINK_V4 { //Win10 RS2+
     ULONG DosDeviceDriveIndex;
     ULONG Flags;
     ULONG AccessMask;
-} OBJECT_SYMBOLIC_LINK_V4, *POBJECT_SYMBOLIC_LINK_V4;
+    //long __PADDING__[1];
+} OBJECT_SYMBOLIC_LINK_V4, *POBJECT_SYMBOLIC_LINK_V4; /* size: 0x0028 */
+
+typedef struct _OBJECT_SYMBOLIC_LINK_V5 { //Win10 21H1+
+    LARGE_INTEGER CreationTime;
+    union {
+        UNICODE_STRING LinkTarget;
+        struct {
+            PVOID Callback;
+            PVOID CallbackContext;
+        };
+    } u1;
+    ULONG DosDeviceDriveIndex;
+    ULONG Flags;
+    ULONG AccessMask;
+    ULONG IntegrityLevel;
+} OBJECT_SYMBOLIC_LINK_V5, * POBJECT_SYMBOLIC_LINK_V5; /* size: 0x0028 */
 
 NTSYSAPI
 NTSTATUS
@@ -11903,6 +12383,28 @@ NtTraceControl(
 *
 ************************************************************************************/
 
+#ifndef _WIN32_WINNT_WIN10
+#define _WIN32_WINNT_WIN10 0x0A00
+#endif
+#if (_WIN32_WINNT < _WIN32_WINNT_WIN10)
+typedef LPVOID(WINAPI* PENCLAVE_ROUTINE) (LPVOID lpThreadParameter);
+typedef PENCLAVE_ROUTINE LPENCLAVE_ROUTINE;
+#endif
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+NtCreateEnclave(
+    _In_ HANDLE ProcessHandle,
+    _Inout_ PVOID* BaseAddress,
+    _In_ ULONG_PTR ZeroBits,
+    _In_ SIZE_T Size,
+    _In_ SIZE_T InitialCommitment,
+    _In_ ULONG EnclaveType,
+    _In_reads_bytes_(EnclaveInformationLength) PVOID EnclaveInformation,
+    _In_ ULONG EnclaveInformationLength,
+    _Out_opt_ PULONG EnclaveError);
+
 NTSYSAPI
 NTSTATUS
 NTAPI
@@ -11916,6 +12418,33 @@ NtLoadEnclaveData(
     _In_ ULONG PageInformationLength,
     _Out_opt_ PSIZE_T NumberOfBytesWritten,
     _Out_opt_ PULONG EnclaveError);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+NtInitializeEnclave(
+    _In_ HANDLE ProcessHandle,
+    _In_ PVOID BaseAddress,
+    _In_reads_bytes_(EnclaveInformationLength) PVOID EnclaveInformation,
+    _In_ ULONG EnclaveInformationLength,
+    _Out_opt_ PULONG EnclaveError);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+NtTerminateEnclave(
+    _In_ PVOID BaseAddress,
+    _In_ BOOLEAN WaitForThread);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+NtCallEnclave(
+    _In_ PENCLAVE_ROUTINE Routine,
+    _In_ PVOID Parameter,
+    _In_ BOOLEAN WaitForThread,
+    _Out_opt_ PVOID* ReturnValue);
+
 
 /************************************************************************************
 *
@@ -12094,7 +12623,6 @@ RtlApplicationVerifierStop(
                                     (ULONG_PTR)(P4),(S4));          \
   }
 #endif
-
 
 //
 // NTOS_RTL HEADER END

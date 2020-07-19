@@ -316,7 +316,7 @@ VOID AddListViewItem(
     
     case OBTYPE_HASH_SYMBOLIC_LINK:
         
-        bFound = supQueryLinkTarget(RootDirectoryHandle,
+        bFound = ntsupResolveSymbolicLink(RootDirectoryHandle,
             &DirectoryObjectEntry->Name,
             szBuffer,
             MAX_PATH * sizeof(WCHAR));

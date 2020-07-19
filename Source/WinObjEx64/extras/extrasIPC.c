@@ -4,9 +4,9 @@
 *
 *  TITLE:       EXTRASIPC.C
 *
-*  VERSION:     1.86
+*  VERSION:     1.87
 *
-*  DATE:        17 May 2020
+*  DATE:        28 June 2020
 *
 *  IPC supported: Pipes, Mailslots
 *
@@ -515,7 +515,7 @@ VOID IpcDlgShowProperties(
             Context,
             (POPENOBJECTMETHOD)&IpcOpenObjectMethod,
             NULL, //use default close method
-            SI_EDIT_OWNER | SI_EDIT_PERMS |
+            SI_EDIT_AUDITS | SI_EDIT_OWNER | SI_EDIT_PERMS | //psiFlags
             SI_ADVANCED | SI_NO_ACL_PROTECT | SI_NO_TREE_APPLY |
             SI_PAGE_TITLE
         );
@@ -781,7 +781,7 @@ INT_PTR CALLBACK IpcDlgProc(
         return DestroyWindow(hwndDlg);
 
     case WM_COMMAND:
-        if (LOWORD(wParam) == IDCANCEL) {
+        if (GET_WM_COMMAND_ID(wParam, lParam) == IDCANCEL) {
             SendMessage(hwndDlg, WM_CLOSE, 0, 0);
             return TRUE;
         }
