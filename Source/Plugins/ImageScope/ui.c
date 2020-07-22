@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        11 July 2020
+*  DATE:        22 July 2020
 *
 *  WinObjEx64 ImageScope UI.
 *
@@ -188,6 +188,183 @@ VOID SectionDumpFlags(
     else {
         SectionDumpUlong(TreeList, RootItem, Flags, ValueName, NULL, DumpType);
     }
+}
+
+VOID SectionDumpUnicodeString(
+    _In_ HWND TreeList,
+    _In_ HTREEITEM hParent,
+    _In_ LPWSTR StringName,
+    _In_ PUNICODE_STRING pString
+)
+{
+    HTREEITEM           h_tviSubItem;
+    TL_SUBITEMS_FIXED   subitems;
+    WCHAR               szValue[PRINTF_BUFFER_LENGTH];
+
+    RtlSecureZeroMemory(&subitems, sizeof(subitems));
+    subitems.Count = 2;
+
+    subitems.Text[0] = EMPTY_STRING;
+    subitems.Text[1] = TEXT("UNICODE_STRING");
+
+    h_tviSubItem = supTreeListAddItem(
+        TreeList,
+        hParent,
+        TVIF_TEXT | TVIF_STATE,
+        TVIS_EXPANDED,
+        0,
+        StringName,
+        &subitems);
+
+
+    //
+    // Add UNICODE_STRING.Length
+    //
+    RtlSecureZeroMemory(&subitems, sizeof(subitems));
+    RtlSecureZeroMemory(szValue, sizeof(szValue));
+
+    StringCchPrintf(
+        szValue, 
+        RTL_NUMBER_OF(szValue),
+        TEXT("0x%hX"), 
+        pString->Length);
+
+    subitems.Count = 2;
+    subitems.Text[0] = szValue;
+    subitems.Text[1] = EMPTY_STRING;
+
+    supTreeListAddItem(
+        TreeList,
+        h_tviSubItem,
+        TVIF_TEXT | TVIF_STATE,
+        0,
+        0,
+        TEXT("Length"),
+        &subitems);
+
+    //
+    // Add UNICODE_STRING.MaximumLength
+    //
+    RtlSecureZeroMemory(szValue, sizeof(szValue));
+    RtlSecureZeroMemory(&subitems, sizeof(subitems));
+
+    StringCchPrintf(
+        szValue,
+        RTL_NUMBER_OF(szValue),
+        TEXT("0x%hX"),
+        pString->MaximumLength);
+
+    subitems.Count = 2;
+    subitems.Text[0] = szValue;
+    subitems.Text[1] = EMPTY_STRING;
+
+    supTreeListAddItem(
+        TreeList,
+        h_tviSubItem,
+        TVIF_TEXT | TVIF_STATE,
+        0,
+        0,
+        TEXT("MaximumLength"),
+        &subitems);
+
+    //
+    // Add UNICODE_STRING.Buffer
+    //
+    RtlSecureZeroMemory(&subitems, sizeof(subitems));
+    subitems.Count = 2;
+
+    if (pString->Buffer == NULL) {
+        subitems.Text[0] = TEXT("NULL");
+        subitems.Text[1] = EMPTY_STRING;
+    }
+    else {
+        RtlSecureZeroMemory(&szValue, sizeof(szValue));
+        szValue[0] = TEXT('0');
+        szValue[1] = TEXT('x');
+        u64tohex((ULONG_PTR)pString->Buffer, &szValue[2]);
+        subitems.Text[0] = szValue;
+        subitems.Text[1] = pString->Buffer;
+    }
+
+    supTreeListAddItem(
+        TreeList,
+        h_tviSubItem,
+        TVIF_TEXT | TVIF_STATE,
+        0,
+        0,
+        TEXT("Buffer"),
+        &subitems);
+
+}
+
+VOID SectionDumpImageFileName(
+    _In_ GUI_CONTEXT *Context
+)
+{
+    OBJECT_NAME_INFORMATION* ObjectNameInfo = NULL;
+    PVOID BaseAddress = Context->SectionAddress;
+    NTSTATUS ntStatus;
+    SIZE_T returnedLength = 0;
+    HTREEITEM tviRoot;
+
+    do {
+
+        ntStatus = NtQueryVirtualMemory(
+            NtCurrentProcess(),
+            BaseAddress,
+            MemoryMappedFilenameInformation,
+            NULL,
+            0,
+            &returnedLength);
+
+        if (ntStatus != STATUS_INFO_LENGTH_MISMATCH)
+            break;
+
+        //
+        // Allocate required buffer.
+        //      
+        ObjectNameInfo = (OBJECT_NAME_INFORMATION*)supHeapAlloc(returnedLength);
+        if (ObjectNameInfo == NULL)
+            break;
+
+        //
+        // Query information.
+        //
+        ntStatus = NtQueryVirtualMemory(
+            NtCurrentProcess(),
+            BaseAddress,
+            MemoryMappedFilenameInformation,
+            ObjectNameInfo,
+            returnedLength,
+            &returnedLength);
+
+        if (NT_SUCCESS(ntStatus)) {
+
+            tviRoot = supTreeListAddItem(
+                Context->TreeList,
+                NULL,
+                TVIF_TEXT | TVIF_STATE,
+                (UINT)TVIS_EXPANDED,
+                (UINT)TVIS_EXPANDED,
+                TEXT("OBJECT_NAME_INFORMATION"),
+                NULL);
+
+            if (tviRoot) {
+
+                SectionDumpUnicodeString(
+                    Context->TreeList,
+                    tviRoot,
+                    TEXT("Name"),
+                    &ObjectNameInfo->Name);
+
+            }
+
+        }
+
+    } while (FALSE);
+
+    if (ObjectNameInfo)
+        supHeapFree(ObjectNameInfo);
 }
 
 VOID SectionDumpStructs(
@@ -396,6 +573,8 @@ VOID SectionDumpStructs(
                 sii.CheckSum, TEXT("CheckSum"), NULL, UlongDump);
 
         }
+
+        SectionDumpImageFileName(Context);
 
         if (bInternalPresent == FALSE)
             __leave;

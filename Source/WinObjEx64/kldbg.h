@@ -215,7 +215,7 @@ typedef struct _OBJREF {
 #define NT_WIN10_20H2           19042
 
 // Windows 10 Active Develepment Branch (21H1)
-#define NTX_WIN10_ADB           20150
+#define NTX_WIN10_ADB           20170
 
 //
 // Defines for boundary descriptors

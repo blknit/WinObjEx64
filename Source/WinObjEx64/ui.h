@@ -58,7 +58,7 @@ typedef HWND(WINAPI *pfnHtmlHelpW)(
 #define PROGRAM_MAJOR_VERSION       1
 #define PROGRAM_MINOR_VERSION       8
 #define PROGRAM_REVISION_NUMBER     7
-#define PROGRAM_BUILD_NUMBER        2006
+#define PROGRAM_BUILD_NUMBER        2007
 
 #ifdef _USE_OWN_DRIVER
 #define PROGRAM_NAME            L"Windows Object Explorer 64-bit (Non-public version)"
@@ -79,7 +79,8 @@ typedef HWND(WINAPI *pfnHtmlHelpW)(
 #define T_COPYVALUE             L"Copy Value Field Text"
 #define T_COPYADDRESS           L"Copy Address Field Text"
 #define T_COPYADDINFO           L"Copy Additional Info Field Text"
-#define T_EXPORTTOFILE          L"Export List to File"
+#define T_EXPORTTOFILE          L"Export List"
+#define T_JUMPTOFILE            L"Jump to File"
 #define T_DUMPDRIVER            L"Dump Driver"
 #define T_VIEW_REFRESH          L"Refresh\tF5"
 #define T_RESCAN                L"Rescan"

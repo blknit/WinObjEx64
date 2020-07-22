@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.87
 *
-*  DATE:        18 July 2020
+*  DATE:        22 July 2020
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -6285,4 +6285,50 @@ VOID supStatusBarSetText(
 )
 {
     SendMessage(hwndStatusBar, SB_SETTEXT, partIndex, (LPARAM)lpText);
+}
+
+/*
+* supJumpToFileListView
+*
+* Purpose:
+*
+* Jump from listview to file on disk.
+*
+*/
+VOID supJumpToFileListView(
+    _In_ HWND hwndList,
+    _In_ INT iFileNameColumn
+)
+{
+    INT iPos;
+    LPWSTR lpDriverName = NULL, lpConvertedName = NULL;
+    SIZE_T sz;
+
+    do {
+
+        iPos = ListView_GetNextItem(hwndList, -1, LVNI_SELECTED);
+        if (iPos < 0)
+            break;
+
+        lpConvertedName = (LPWSTR)supHeapAlloc(UNICODE_STRING_MAX_CHARS + 1);
+        if (lpConvertedName == NULL)
+            break;
+
+        sz = 0;
+        lpDriverName = supGetItemText(hwndList, iPos, iFileNameColumn, &sz);
+        if (lpDriverName == NULL)
+            break;
+
+        if (supGetWin32FileName(
+            lpDriverName,
+            lpConvertedName,
+            UNICODE_STRING_MAX_CHARS))
+        {
+            supJumpToFile(lpConvertedName);
+        }
+
+    } while (FALSE);
+
+    if (lpDriverName) supHeapFree(lpDriverName);
+    if (lpConvertedName) supHeapFree(lpConvertedName);
 }

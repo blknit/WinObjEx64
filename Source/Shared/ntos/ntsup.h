@@ -6,7 +6,7 @@
 *
 *  VERSION:     2.02
 *
-*  DATE:        18 July 2020
+*  DATE:        22 July 2020
 *
 *  Common header file for the NT API support functions and definitions.
 *
@@ -207,6 +207,12 @@ BOOL ntsupGetProcessElevationType(
 NTSTATUS ntsupIsProcessElevated(
     _In_ ULONG ProcessId,
     _Out_ PBOOL Elevated);
+
+ULONG ntsupGetMappedFileName(
+    _In_ PVOID BaseAddress,
+    _Inout_ LPWSTR FileName,
+    _In_ ULONG cchFileName,
+    _Out_ PSIZE_T cbNeeded);
 
 #ifdef __cplusplus
 }

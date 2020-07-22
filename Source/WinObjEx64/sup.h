@@ -653,3 +653,7 @@ VOID supStatusBarSetText(
     _In_ HWND hwndStatusBar,
     _In_ WPARAM partIndex,
     _In_ LPWSTR lpText);
+
+VOID supJumpToFileListView(
+    _In_ HWND hwndList,
+    _In_ INT iFileNameColumn);

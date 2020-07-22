@@ -82,6 +82,7 @@ VOID DrvHandlePopupMenu(
             if (kdConnectDriver()) {
                 InsertMenu(hMenu, iPos++, MF_BYCOMMAND, ID_DRVLIST_DUMP, T_DUMPDRIVER);
             }
+            InsertMenu(hMenu, iPos++, MF_BYCOMMAND, ID_JUMPTOFILE, T_JUMPTOFILE);
             InsertMenu(hMenu, iPos++, MF_BYCOMMAND, ID_DRVLIST_SAVE, T_EXPORTTOFILE);
             InsertMenu(hMenu, iPos++, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
             InsertMenu(hMenu, iPos++, MF_BYCOMMAND, ID_DRVLIST_REFRESH, T_VIEW_REFRESH);
@@ -498,6 +499,9 @@ INT_PTR CALLBACK DriversDialogProc(
             break;
         case ID_DRVLIST_DUMP:
             DrvDumpDriver();
+            break;
+        case ID_JUMPTOFILE:
+            supJumpToFileListView(DrvDlgContext.ListView, 4);
             break;
         case ID_DRVLIST_SAVE:
 

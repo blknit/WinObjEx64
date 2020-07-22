@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.87
 *
-*  DATE:        15 July 2020
+*  DATE:        22 July 2020
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -104,8 +104,10 @@ VOID SdtHandlePopupMenu(
 
     hMenu = CreatePopupMenu();
     if (hMenu) {
-        InsertMenu(hMenu, 0, MF_BYCOMMAND, ID_SDTLIST_SAVE, T_EXPORTTOFILE);
-        InsertMenu(hMenu, 1, MF_BYCOMMAND, ID_VIEW_REFRESH, T_RESCAN);
+        InsertMenu(hMenu, 0, MF_BYCOMMAND, ID_JUMPTOFILE, T_JUMPTOFILE);
+        InsertMenu(hMenu, 1, MF_BYCOMMAND, ID_SDTLIST_SAVE, T_EXPORTTOFILE);
+        InsertMenu(hMenu, 2, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+        InsertMenu(hMenu, 3, MF_BYCOMMAND, ID_VIEW_REFRESH, T_RESCAN);
         TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_LEFTALIGN, pt1.x, pt1.y, 0, hwndDlg, NULL);
         DestroyMenu(hMenu);
     }
@@ -299,6 +301,13 @@ INT_PTR CALLBACK SdtDialogProc(
             pDlgContext = (EXTRASCONTEXT*)GetProp(hwndDlg, T_DLGCONTEXT);
             if (pDlgContext) {
                 SdtListCreate(hwndDlg, TRUE, pDlgContext);
+            }
+            break;
+
+        case ID_JUMPTOFILE:
+            pDlgContext = (EXTRASCONTEXT*)GetProp(hwndDlg, T_DLGCONTEXT);
+            if (pDlgContext) {
+                supJumpToFileListView(pDlgContext->ListView, 3);
             }
             break;
         }

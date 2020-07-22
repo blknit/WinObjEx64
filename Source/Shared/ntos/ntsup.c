@@ -6,7 +6,7 @@
 *
 *  VERSION:     2.02
 *
-*  DATE:        18 July 2020
+*  DATE:        22 July 2020
 *
 *  Native API support functions.
 *
@@ -1381,4 +1381,111 @@ NTSTATUS ntsupIsProcessElevated(
     }
 
     return ntStatus;
+}
+
+
+/*
+* ntsupGetMappedFileName
+*
+* Purpose:
+*
+* Checks whether the specified address is within a memory-mapped file.
+* If so, the function returns the name of the memory-mapped file.
+*
+*/
+ULONG ntsupGetMappedFileName(
+    _In_ PVOID BaseAddress,
+    _Inout_ LPWSTR FileName,
+    _In_ ULONG cchFileName,
+    _Out_ PSIZE_T cbNeeded
+)
+{
+    OBJECT_NAME_INFORMATION *ObjectNameInfo;
+    NTSTATUS ntStatus;
+    SIZE_T returnedLength = 0;
+    ULONG errorCode, copyLength = 0;
+    HANDLE processHeap = NtCurrentPeb()->ProcessHeap;
+
+    *cbNeeded = 0;
+
+    if (cchFileName == 0) {
+        RtlSetLastWin32Error(ERROR_INSUFFICIENT_BUFFER);
+        return 0;
+    }
+
+    //
+    // Don't be like MS authors and ask actual size.
+    //
+    ntStatus = NtQueryVirtualMemory(
+        NtCurrentProcess(),
+        BaseAddress,
+        MemoryMappedFilenameInformation,
+        NULL,
+        0,
+        &returnedLength);
+
+    if (ntStatus != STATUS_INFO_LENGTH_MISMATCH) {
+        RtlSetLastWin32Error(RtlNtStatusToDosError(ntStatus));
+        return 0;
+    }
+
+    //
+    // Allocate required buffer.
+    //
+    ObjectNameInfo = (OBJECT_NAME_INFORMATION*)RtlAllocateHeap(
+        processHeap,
+        HEAP_ZERO_MEMORY, 
+        returnedLength);
+
+    if (ObjectNameInfo == NULL) {
+        RtlSetLastWin32Error(ERROR_NOT_ENOUGH_MEMORY);
+        return 0;
+    }
+
+    //
+    // Query information.
+    //
+    ntStatus = NtQueryVirtualMemory(
+        NtCurrentProcess(),
+        BaseAddress,
+        MemoryMappedFilenameInformation,
+        ObjectNameInfo,
+        returnedLength,
+        &returnedLength);
+
+    if (NT_SUCCESS(ntStatus)) {
+
+        //
+        // Copy filename.
+        //
+        copyLength = ObjectNameInfo->Name.Length >> 1;
+        if (cchFileName > copyLength + 1) {
+            errorCode = ERROR_SUCCESS;
+        }
+        else {
+            *cbNeeded = ((SIZE_T)copyLength + 1) * sizeof(WCHAR);
+            copyLength = cchFileName - 1;
+            errorCode = ERROR_INSUFFICIENT_BUFFER;
+        }
+
+        RtlSetLastWin32Error(errorCode);
+
+        if (copyLength) {
+
+            RtlCopyMemory(
+                FileName,
+                ObjectNameInfo->Name.Buffer,
+                copyLength * sizeof(WCHAR));
+
+            FileName[copyLength] = 0;
+
+        }
+
+    }
+    else {
+        RtlSetLastWin32Error(RtlNtStatusToDosError(ntStatus));
+    }
+
+    RtlFreeHeap(processHeap, 0, ObjectNameInfo);
+    return copyLength;
 }

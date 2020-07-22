@@ -1,7 +1,5 @@
 v1.8.7
 20h1/20h2/21h1 compatibility improvements
-fix high cpu usage for splitter drag (report/fix by RamMerlabs)
-fix security dialog regression (reported by RamMerlabs)
 added recognizing of shimmed drivers for drivers list (win10+)
 plugins system extended and upgraded to support context plugins
 added imagescope plugin for section object types backed by imagefile
