@@ -218,6 +218,11 @@ shared\ntos\ntldr.h
 
 * NT PE loader related declarations and routines
 
+shared\ntos\ntsup.c
+shared\ntos\ntsup.h
+
+* Native API shared rtl
+
 shared\ntos\apisetx.h
 
 * MS ApiSetSchema dedicated header file

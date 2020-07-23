@@ -855,7 +855,7 @@ VOID propObDumpUnicodeString(
         }
         subitems.Text[1] = lpObjectName;
     }
-
+    
     supTreeListAddItem(
         TreeList,
         h_tviSubItem,

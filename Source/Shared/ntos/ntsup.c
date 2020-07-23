@@ -1216,7 +1216,7 @@ NTSTATUS ntsupIsLocalSystem(
 {
     BOOL                            bResult = FALSE;
 
-    NTSTATUS                        ntStatus = STATUS_UNSUCCESSFUL;
+    NTSTATUS                        ntStatus;
     HANDLE                          tokenHandle = NULL;
     HANDLE                          heapHandle = NtCurrentPeb()->ProcessHeap;
 

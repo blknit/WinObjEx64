@@ -5,6 +5,7 @@ plugins system extended and upgraded to support context plugins
 added imagescope plugin for section object types backed by imagefile
 added plugins viewer
 various minor changes
+treelist: fix tooltips flickering on Windows 7
 
 v1.8.6
 reimplemented directory object dump to output more data

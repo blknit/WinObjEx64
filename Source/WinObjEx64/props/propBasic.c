@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.87
 *
-*  DATE:        12 July 2020
+*  DATE:        22 July 2020
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -1007,7 +1007,7 @@ VOID propBasicQuerySymlink(
 
     //
     // Copy link target from main object list for performance reasons.
-    // So we don't need to query same data again.
+    // Because we don't need to query same data again.
     //
     lpLinkTarget = Context->lpDescription;
     if (lpLinkTarget) {
